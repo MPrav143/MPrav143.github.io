@@ -2,14 +2,13 @@ const express = require('express');
 const router = express.Router();
 const Certificate = require('../models/Certificate');
 const verifyToken = require('../middleware/auth');
-
-// Get All Certificates
 const parseDate = require('../utils/dateParser');
 
 // Get All Certificates
 router.get('/', async (req, res) => {
     try {
-        const certs = await Certificate.find().sort({ startDate: -1 });
+        // Sort by 'index' (manual sorting), then by date descending
+        const certs = await Certificate.find().sort({ index: 1, startDate: -1 });
         res.json(certs);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -25,7 +24,10 @@ router.post('/', verifyToken, async (req, res) => {
         image: req.body.image,
         pdfLink: req.body.pdfLink,
         date: req.body.date,
-        startDate: parseDate(req.body.date)
+        startDate: parseDate(req.body.date),
+        companyLogo: req.body.companyLogo,
+        description: req.body.description,
+        index: req.body.index || 0
     };
     const cert = new Certificate(certData);
 

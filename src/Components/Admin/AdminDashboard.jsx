@@ -19,7 +19,9 @@ const AdminDashboard = () => {
     const menuItems = [
         { name: 'Dashboard', path: '/admin', id: 'dashboard' },
         { name: 'Achievements', path: '/admin/achievements', id: 'achievements' },
+        { name: 'Backgrounds', path: '/admin/backgrounds', id: 'backgrounds' },
         { name: 'Certificates', path: '/admin/certificates', id: 'certificates' },
+        { name: 'Contact Detail', path: '/admin/contact-detail', id: 'contact_detail' },
         { name: 'Education', path: '/admin/education', id: 'education' },
         { name: 'Experience', path: '/admin/experience', id: 'experience' },
         { name: 'Messages', path: '/admin/messages', id: 'messages' },

@@ -23,24 +23,8 @@ const ManageProjects = () => {
         }
     };
 
-    const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // Removed handleImageUpload as Cloudinary is no longer used
 
-        setUploading(true);
-        const data = new FormData();
-        data.append('file', file);
-
-        try {
-            const res = await api.post('/upload', data);
-            setFormData({ ...formData, image: res.data.imageUrl });
-        } catch (err) {
-            console.error('Upload Error:', err);
-            alert('Image upload failed');
-        } finally {
-            setUploading(false);
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -108,34 +92,45 @@ const ManageProjects = () => {
                 <h3 className="text-xl font-semibold mb-6 text-gray-200">{editId ? 'Edit Project' : 'Add New Project'}</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    {/* Image Upload Area */}
+                    {/* Image URL Input Area */}
                     <div className="md:col-span-2">
-                        <label className="block text-gray-400 text-sm mb-2">Project Image</label>
+                        <label className="block text-gray-400 text-sm mb-2">Project Image (Google Drive)</label>
                         <div className="flex items-center gap-4">
-                            <div className="relative w-32 h-32 bg-gray-700 rounded-lg overflow-hidden border-2 border-dashed border-gray-600 flex items-center justify-center group">
+                            <div className="relative w-32 h-32 bg-gray-700 rounded-lg overflow-hidden border-2 border-gray-600 flex items-center justify-center group">
                                 {formData.image ? (
                                     <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
                                 ) : (
-                                    <Upload className="text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                    <div className="text-gray-500 text-xs text-center">No Preview</div>
                                 )}
-                                <input
-                                    type="file"
-                                    onChange={handleImageUpload}
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                    accept="image/*"
-                                />
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm text-gray-400 mb-2">
-                                    {uploading ? 'Uploading...' : 'Click or drag to upload image'}
-                                </p>
+                                <label className="text-xs text-gray-500">Paste Google Drive link or ID below:</label>
+                                <input
+                                    type="text"
+                                    placeholder="Paste Google Drive link or file ID"
+                                    className="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
+                                    value={formData.image && formData.image.includes('drive.google.com/uc?id=') ? formData.image.split('id=')[1] : formData.image || ''}
+                                    onChange={(e) => {
+                                        let val = e.target.value;
+                                        if (val.includes('drive.google.com/file/d/')) {
+                                            const m = val.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                                            if (m && m[1]) val = `https://drive.google.com/uc?id=${m[1]}`;
+                                        } else if (val.includes('drive.google.com/open?id=')) {
+                                            const m = val.match(/id=([a-zA-Z0-9_-]+)/);
+                                            if (m && m[1]) val = `https://drive.google.com/uc?id=${m[1]}`;
+                                        } else if (val.trim() && !val.includes('http') && /^[a-zA-Z0-9_-]{25,50}$/.test(val.trim())) {
+                                            val = `https://drive.google.com/uc?id=${val.trim()}`;
+                                        }
+                                        setFormData({ ...formData, image: val });
+                                    }}
+                                />
                                 {formData.image && (
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, image: '' })}
-                                        className="text-red-400 text-sm hover:underline"
+                                        className="text-red-400 text-sm hover:underline mt-1 block"
                                     >
-                                        Remove Image
+                                        Remove Image Link
                                     </button>
                                 )}
                             </div>

@@ -22,6 +22,8 @@ import ManageAchievements from './Components/Admin/ManageAchievements';
 import ManageMessages from './Components/Admin/ManageMessages';
 import ManageResume from './Components/Admin/ManageResume';
 import DashboardHome from './Components/Admin/DashboardHome';
+import ManageContactDetail from './Components/Admin/ManageContactDetail';
+import ManageBackgrounds from './Components/Admin/ManageBackgrounds';
 
 // Component to track visits
 const VisitTracker = () => {
@@ -65,6 +67,8 @@ function App() {
           <Route path="profile" element={<ManageProfile />} />
           <Route path="achievements" element={<ManageAchievements />} />
           <Route path="messages" element={<ManageMessages />} />
+          <Route path="contact-detail" element={<ManageContactDetail />} />
+          <Route path="backgrounds" element={<ManageBackgrounds />} />
         </Route>
       </Routes>
     </Router>

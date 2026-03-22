@@ -1,23 +1,32 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import api from '../api';
-import { Cpu, Globe, Database, Layout, Server, Code, Smartphone, Terminal, PenTool, Layers } from 'lucide-react';
+import { Cpu, Database, Layout, Server, Code, Smartphone, Terminal, PenTool, Layers } from 'lucide-react';
+import Doodles from './Doodles';
 
 const Skills = () => {
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bgImage, setBgImage] = useState("");
 
   useEffect(() => {
-    const fetchSkills = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/skills');
-        setSkills(res.data);
+        const [skillsRes, aboutRes] = await Promise.all([
+          api.get('/skills'),
+          api.get('/about')
+        ]);
+        setSkills(skillsRes.data);
+        if (aboutRes.data && aboutRes.data.length > 0 && aboutRes.data[0].sectionBackgrounds?.skills) {
+          setBgImage(`url('${aboutRes.data[0].sectionBackgrounds.skills}')`);
+        }
       } catch (err) {
         console.error("Error fetching skills:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchSkills();
+    fetchData();
   }, []);
 
   const getCategoryIcon = (category) => {
@@ -49,38 +58,56 @@ const Skills = () => {
     )
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 30 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+
   return (
     <section
       id="skills"
-      className="py-20 relative"
-      style={{
-        backgroundImage: "url('https://res.cloudinary.com/diwykgo1k/image/upload/v1765440818/Skills_byxtgn.avif')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed"
-      }}
+      className={`py-20 relative font-skills bg-cover bg-center ${bgImage ? 'md:bg-fixed' : ''}`}
+      style={bgImage ? { backgroundImage: bgImage } : {}}
     >
-      {/* Background decoration */}
       <div className="absolute top-1/4 left-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl -translate-x-1/2"></div>
       <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl translate-x-1/2"></div>
+      <Doodles sectionName="skills" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full flex flex-col items-center">
+        
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="section-heading-container mb-12"
+        >
+          <h2 className="section-heading">
             <Cpu className="text-cyan-400" size={40} />
-            <span className="text-cyan-400">Skills</span>
+            <span className="text-cyan-400 capitalize">Skills</span>
           </h2>
-          <div className="w-24 h-1 bg-gradient-to-r from-cyan-500 to-blue-600 mx-auto rounded-full"></div>
-          <p className="text-white mt-4 max-w-2xl mx-auto">
-            A showcase of my technical expertise and the technologies I work with.
-          </p>
-        </div>
+          <div className="section-underline"></div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="flex flex-wrap justify-center gap-8 w-full"
+        >
           {skills.map((category) => (
-            <div
+            <motion.div
               key={category._id}
-              className={`bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${getCategoryColor(category.category)} group`}
+              variants={itemVariants}
+              className={`w-full md:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.33rem)] max-w-md bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${getCategoryColor(category.category)} group cursor-default`}
             >
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-cyan-700">
                 <div className="p-3 bg-gray-900 rounded-xl group-hover:scale-110 transition-transform duration-300">
@@ -93,17 +120,18 @@ const Skills = () => {
 
               <div className="flex flex-wrap gap-2">
                 {category.items.map((skillName, index) => (
-                  <span
+                  <motion.span
                     key={index}
-                    className="px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg border border-gray-700 hover:border-cyan-500/50 hover:text-white hover:bg-gray-800 transition-colors cursor-default"
+                    whileHover={{ scale: 1.08, borderColor: "rgba(34,211,238,0.5)", color: "#fff" }}
+                    className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg border border-gray-700 hover:bg-gray-800 transition-all cursor-default shadow-sm"
                   >
                     {skillName}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

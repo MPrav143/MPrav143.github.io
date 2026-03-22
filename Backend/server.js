@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware (CORS must be first)
 // Middleware (CORS must be first)
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://portfolio-front-delta-two.vercel.app'],
+    origin: ['http://localhost:5173', 'https://mprav143.github.io', 'https://praveenmurugan.me'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'auth-token']
@@ -50,10 +50,10 @@ app.use('/api/education', require('./routes/education'));
 app.use('/api/skills', require('./routes/skills'));
 app.use('/api/achievements', require('./routes/achievements'));
 app.use('/api/certificates', require('./routes/certificates'));
-app.use('/api/upload', require('./routes/upload'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/leetcode', require('./routes/leetcode'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/sociallinks', require('./routes/socialLinks'));
 
 app.get('/', (req, res) => {
     res.send('Portfolio Backend is running');

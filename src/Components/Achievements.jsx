@@ -1,23 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Award, Calendar, ExternalLink, Star } from 'lucide-react';
 import api from '../api';
+import Doodles from './Doodles';
 
 const Achievements = () => {
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bgImage, setBgImage] = useState("");
 
   useEffect(() => {
-    const fetchAchievements = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/achievements');
-        setAchievements(res.data);
+        const [achRes, aboutRes] = await Promise.all([
+          api.get('/achievements'),
+          api.get('/about')
+        ]);
+        setAchievements(achRes.data);
+        if (aboutRes.data && aboutRes.data.length > 0 && aboutRes.data[0].sectionBackgrounds?.achievements) {
+          setBgImage(`url('${aboutRes.data[0].sectionBackgrounds.achievements}')`);
+        }
       } catch (err) {
         console.error("Error fetching achievements:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchAchievements();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -31,25 +39,23 @@ const Achievements = () => {
   return (
     <section
       id="achievements"
-      className="py-20 relative"
-      style={{
-        backgroundImage: "url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed"
-      }}
+      className={`py-20 relative font-achievements bg-cover bg-center ${bgImage ? 'md:bg-fixed' : ''}`}
+      style={bgImage ? {
+        backgroundImage: bgImage,
+      } : {}}
     >
-      <div className="absolute inset-0 bg-gray-900/90"></div>
+      <div className={`absolute inset-0 ${bgImage ? 'bg-gray-900/60' : 'bg-gray-900/90'} z-0`}></div>
+      <Doodles sectionName="achievements" />
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
+        <div className="section-heading-container">
+          <h2 className="section-heading">
             <Award className="text-cyan-400" size={40} />
-            <span className="text-cyan-400">Achievements</span>
+            <span className="text-cyan-400 capitalize">Achievements</span>
           </h2>
-          <div className="w-32 h-1 bg-gradient-to-r from-cyan-400 to-cyan-900 mx-auto rounded-full"></div>
+          <div className="section-underline"></div>
         </div>
 
         <div className="space-y-6">

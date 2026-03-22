@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Award, Code, Zap, Trophy, Loader, Star } from 'lucide-react';
 import api from '../api';
+import Doodles from './Doodles';
 
 const LeetCode = () => {
   const [loading, setLoading] = useState(true);
@@ -22,11 +23,19 @@ const LeetCode = () => {
     badges: []
   });
 
+  const [bgImage, setBgImage] = useState("");
+
   useEffect(() => {
     const fetchLeetCodeData = async () => {
       try {
-        const response = await api.get('/leetcode/Praveen_1708');
+        const [response, aboutRes] = await Promise.all([
+          api.get('/leetcode/Praveen_1708'),
+          api.get('/about')
+        ]);
         const leetData = response.data;
+        if (aboutRes.data && aboutRes.data.length > 0 && aboutRes.data[0].sectionBackgrounds?.leetcode) {
+          setBgImage(`url('${aboutRes.data[0].sectionBackgrounds.leetcode}')`);
+        }
 
         const matchedUser = leetData.matchedUser;
         const allQuestions = leetData.allQuestionsCount;
@@ -100,15 +109,13 @@ const LeetCode = () => {
 
   return (
     <section
-      className="py-24 relative overflow-hidden"
-      style={{
-        backgroundImage: "url('https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&q=80')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed"
-      }}
+      className={`py-24 relative overflow-hidden font-leetcode bg-cover bg-center ${bgImage ? 'md:bg-fixed' : ''}`}
+      style={bgImage ? {
+        backgroundImage: bgImage,
+      } : {}}
     >
-      <div className="absolute inset-0 bg-[#0a0a0a]/90"></div>
+      <div className={`absolute inset-0 ${bgImage ? 'bg-[#0a0a0a]/60' : 'bg-[#0a0a0a]/90'} z-0`}></div>
+      <Doodles sectionName="leetcode" />
       {/* Abstract Background */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2"></div>
@@ -116,15 +123,16 @@ const LeetCode = () => {
       <div className="max-w-7xl mx-auto px-6 relative z-10">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+        <div className="section-heading-container mb-16">
+          <h2 className="section-heading">
+            <span className="text-cyan-400 capitalize">LeetCode</span>
+          </h2>
+          <div className="section-underline"></div>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
           <div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 flex items-center gap-4">
-              <Code className="text-cyan-400" size={48} />
-              <span className="bg-clip-text bg-gradient-to-r text-cyan-400">
-                LeetCode
-              </span>
-            </h2>
-            <p className="text-gray-400 text-lg max-w-xl leading-relaxed">
+            <p className="text-gray-400 text-lg max-w-xl leading-relaxed mt-4">
               Continuously pushing boundaries with algorithmic problem solving.
               Here is a snapshot of my coding journey.
             </p>

@@ -20,7 +20,19 @@ const AboutSchema = new mongoose.Schema({
         organization: String
     }],
     resume: { type: String }, // URL to resume PDF
-    identifier: { type: String, unique: true } // e.g., 'datascience' or 'fullstack' to distinguish profiles if needed
+    identifier: { type: String, unique: true }, // e.g., 'datascience' or 'fullstack' to distinguish profiles if needed
+    sectionBackgrounds: {
+        hero: String,
+        about: String,
+        education: String,
+        experience: String,
+        projects: String,
+        skills: String,
+        leetcode: String,
+        certificates: String,
+        achievements: String,
+        contact: String
+    }
 });
 
 module.exports = mongoose.model('About', AboutSchema);

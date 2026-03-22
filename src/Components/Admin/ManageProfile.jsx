@@ -16,7 +16,19 @@ const ManageProfile = () => {
             github: '',
             portfolio: '',
         },
-        leadership: [] // Add leadership array
+        leadership: [], // Add leadership array
+        sectionBackgrounds: {
+            hero: '',
+            about: '',
+            education: '',
+            experience: '',
+            projects: '',
+            skills: '',
+            leetcode: '',
+            certificates: '',
+            achievements: '',
+            contact: ''
+        }
     });
     const [newLeadership, setNewLeadership] = useState({ role: '', period: '', organization: '' }); // State for new entry
     const [editIndex, setEditIndex] = useState(null); // Track which item is being edited
@@ -33,7 +45,35 @@ const ManageProfile = () => {
         try {
             const res = await api.get('/about');
             if (res.data && res.data.length > 0) {
-                setProfile(res.data[0]);
+                let fetchedProfile = res.data[0];
+                
+                // Helper to clean drive links
+                const cleanDriveLink = (url) => {
+                    if (!url) return url;
+                    if (url.includes('drive.google.com/file/d/')) {
+                        const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                        if (m && m[1]) return `https://drive.google.com/uc?id=${m[1]}`;
+                    } else if (url.includes('drive.google.com/open?id=')) {
+                        const m = url.match(/id=([a-zA-Z0-9_-]+)/);
+                        if (m && m[1]) return `https://drive.google.com/uc?id=${m[1]}`;
+                    }
+                    return url;
+                };
+
+                if (fetchedProfile.sectionBackgrounds) {
+                    Object.keys(fetchedProfile.sectionBackgrounds).forEach(key => {
+                        fetchedProfile.sectionBackgrounds[key] = cleanDriveLink(fetchedProfile.sectionBackgrounds[key]);
+                    });
+                }
+                
+                setProfile(prev => ({
+                    ...prev,
+                    ...fetchedProfile,
+                    sectionBackgrounds: {
+                        ...prev.sectionBackgrounds,
+                        ...(fetchedProfile.sectionBackgrounds || {})
+                    }
+                }));
             }
         } catch (err) {
             console.error("Error fetching profile:", err);
@@ -43,36 +83,19 @@ const ManageProfile = () => {
         }
     };
 
-    const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // Removed handleImageUpload and handleBackgroundUpload as Cloudinary is no longer used
 
-        // Validation
-        if (!file.type.startsWith('image/')) {
-            alert('Please upload an image file.');
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            alert('File size exceeds 5MB.');
-            return;
-        }
 
-        setImageUploading(true);
-        const data = new FormData();
-        data.append('file', file);
-
-        try {
-            // Let Axios/Browser set the Content-Type with boundary automatically
-            const res = await api.post('/upload', data);
-            setProfile(prev => ({ ...prev, profileImage: res.data.imageUrl }));
-        } catch (err) {
-            console.error('Image Upload Error:', err);
-            const errorMsg = err.response?.data?.message || err.message || 'Image upload failed';
-            setMessage({ type: 'error', text: `Upload failed: ${errorMsg}` });
-        } finally {
-            setImageUploading(false);
-        }
+    const removeBackground = (section) => {
+        setProfile(prev => ({
+            ...prev,
+            sectionBackgrounds: {
+                ...prev.sectionBackgrounds,
+                [section]: ''
+            }
+        }));
     };
+
 
     const handleChange = (e, index, field) => {
         if (index !== undefined) {
@@ -82,17 +105,34 @@ const ManageProfile = () => {
             setProfile({ ...profile, leadership: updatedLeadership });
         } else {
             const { name, value } = e.target;
+            
+            // Auto-convert Google Drive viewing links to direct image rendering links
+            let finalValue = value;
+            if (finalValue.includes('drive.google.com/file/d/')) {
+                const match = finalValue.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                if (match && match[1]) {
+                    finalValue = `https://drive.google.com/uc?id=${match[1]}`;
+                }
+            } else if (finalValue.includes('drive.google.com/open?id=')) {
+                const match = finalValue.match(/id=([a-zA-Z0-9_-]+)/);
+                if (match && match[1]) {
+                    finalValue = `https://drive.google.com/uc?id=${match[1]}`;
+                }
+            } else if (finalValue.trim() && !finalValue.includes('http') && /^[a-zA-Z0-9_-]{25,50}$/.test(finalValue.trim())) {
+                finalValue = `https://drive.google.com/uc?id=${finalValue.trim()}`;
+            }
+
             if (name.includes('.')) {
                 const [parent, child] = name.split('.');
                 setProfile(prev => ({
                     ...prev,
                     [parent]: {
                         ...prev[parent],
-                        [child]: value
+                        [child]: finalValue
                     }
                 }));
             } else {
-                setProfile(prev => ({ ...prev, [name]: value }));
+                setProfile(prev => ({ ...prev, [name]: finalValue }));
             }
         }
     };
@@ -177,9 +217,9 @@ const ManageProfile = () => {
                 <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-6 h-fit">
                     <h3 className="text-xl font-semibold text-cyan-400 border-b border-gray-700 pb-2 mb-4">Edit Profile</h3>
 
-                    {/* Image Upload */}
+                    {/* Image URL Input */}
                     <div>
-                        <label className="block text-gray-400 mb-2">Profile Photo</label>
+                        <label className="block text-gray-400 mb-2">Profile Photo (Google Drive Link/ID)</label>
                         <div className="flex items-center gap-6">
                             <div className="w-24 h-24 bg-gray-700 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-600 relative group">
                                 {profile.profileImage ? (
@@ -191,27 +231,26 @@ const ManageProfile = () => {
                             <div className="flex-1">
                                 <div className="relative">
                                     <input
-                                        type="file"
-                                        id="profile-upload"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        disabled={imageUploading}
+                                        type="text"
+                                        placeholder="Paste Google Drive link or file ID"
+                                        className="w-full p-2 bg-gray-900 border border-gray-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400"
+                                        value={profile.profileImage && profile.profileImage.includes('drive.google.com/uc?id=') ? profile.profileImage.split('id=')[1] : profile.profileImage || ''}
+                                        onChange={(e) => {
+                                            let val = e.target.value;
+                                             if (val.includes('drive.google.com/file/d/')) {
+                                                 const m = val.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                                                 if (m && m[1]) val = `https://drive.google.com/uc?id=${m[1]}`;
+                                             } else if (val.includes('drive.google.com/open?id=')) {
+                                                 const m = val.match(/id=([a-zA-Z0-9_-]+)/);
+                                                 if (m && m[1]) val = `https://drive.google.com/uc?id=${m[1]}`;
+                                             } else if (val.trim() && !val.includes('http') && /^[a-zA-Z0-9_-]{25,50}$/.test(val.trim())) {
+                                                 val = `https://drive.google.com/uc?id=${val.trim()}`;
+                                             }
+                                             setProfile({ ...profile, profileImage: val });
+                                        }}
                                     />
-                                    <label
-                                        htmlFor="profile-upload"
-                                        className={`
-                                        inline-flex items-center gap-2 px-4 py-2 
-                                        bg-gray-900 border border-gray-600 rounded cursor-pointer 
-                                        text-cyan-400 hover:bg-gray-700 transition-colors
-                                        ${imageUploading ? 'opacity-50 pointer-events-none' : ''}
-                                    `}
-                                    >
-                                        {imageUploading ? <Loader size={18} className="animate-spin" /> : <Upload size={18} />}
-                                        {imageUploading ? 'Uploading...' : 'Change Photo'}
-                                    </label>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">Recommended: Square format, PNG or JPG.</p>
+                                <p className="text-xs text-gray-500 mt-2">Enter the standard viewing URL or 25-50 length character Drive file ID.</p>
                             </div>
                         </div>
                     </div>
@@ -347,31 +386,9 @@ const ManageProfile = () => {
                         </div>
                     </div>
 
-                    <div className="border-t border-gray-700 pt-4">
-                        <h3 className="text-lg font-semibold text-cyan-400 mb-4">Social Links</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-gray-400 mb-2">LinkedIn URL</label>
-                                <input
-                                    type="text"
-                                    name="socialLinks.linkedin"
-                                    value={profile.socialLinks?.linkedin || ''}
-                                    onChange={handleChange}
-                                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-cyan-400"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-400 mb-2">GitHub URL</label>
-                                <input
-                                    type="text"
-                                    name="socialLinks.github"
-                                    value={profile.socialLinks?.github || ''}
-                                    onChange={handleChange}
-                                    className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-cyan-400"
-                                />
-                            </div>
-                        </div>
-                    </div>
+
+
+
 
                     <div className="flex justify-end">
                         <button
