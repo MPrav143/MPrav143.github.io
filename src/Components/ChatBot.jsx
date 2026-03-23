@@ -70,10 +70,47 @@ const ChatBot = () => {
             initialMessage = `${greeting} Welcome to my portfolio… I’m here to walk you through my profile. How can I assist you today?`;
         }
 
-        const timer = setTimeout(() => {
+        let hasGreeted = false;
+
+        const triggerGreeting = () => {
+            if (hasGreeted) return;
+            hasGreeted = true;
+            
+            // Clean up interaction listeners
+            window.removeEventListener('click', triggerGreeting);
+            window.removeEventListener('keydown', triggerGreeting);
+            window.removeEventListener('touchstart', triggerGreeting);
+            window.removeEventListener('scroll', triggerGreeting);
+
             setIsOpen(true);
-            speakAndType(initialMessage);
-        }, 1500);
+            
+            // Ensure any pending spoken audio is cleared to allow this one to play perfectly
+            window.speechSynthesis.cancel();
+            
+            // Use a slight delay to allow UI to render first
+            setTimeout(() => {
+                speakAndType(initialMessage);
+            }, 300);
+        };
+
+        // Add listeners to wait for first user interaction (bypasses browser autoplay block)
+        window.addEventListener('click', triggerGreeting, { once: true });
+        window.addEventListener('keydown', triggerGreeting, { once: true });
+        window.addEventListener('touchstart', triggerGreeting, { once: true });
+        window.addEventListener('scroll', triggerGreeting, { once: true });
+
+        // Fallback: If no interaction within 3 seconds, still type the message out (audio may be blocked by browser)
+        const timer = setTimeout(() => {
+            if (!hasGreeted) {
+                hasGreeted = true;
+                setIsOpen(true);
+                speakAndType(initialMessage);
+                window.removeEventListener('click', triggerGreeting);
+                window.removeEventListener('keydown', triggerGreeting);
+                window.removeEventListener('touchstart', triggerGreeting);
+                window.removeEventListener('scroll', triggerGreeting);
+            }
+        }, 3000);
 
         // Load data
         const fetchData = async () => {
@@ -152,8 +189,14 @@ const ChatBot = () => {
         const utterance = new SpeechSynthesisUtterance(fullText);
         utterance.lang = 'en-US';
         utterance.rate = 1.25;
-        const voice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Microsoft David')) || voices[0];
+        
+        // Use the most up-to-date voices by getting them directly, as state closure might be empty
+        const currentVoices = window.speechSynthesis.getVoices();
+        const voice = currentVoices.find(v => v.name.includes('Google US English') || v.name.includes('Microsoft David')) || currentVoices[0];
         if (voice) utterance.voice = voice;
+
+        // Persist utterance in window so it doesn't get garbage-collected mid-speech (Chrome bug)
+        window.currentUtterance = utterance;
 
         let hasSpoken = false;
 

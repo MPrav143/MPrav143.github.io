@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'https://mprav143-github-io.onrender.com/api ' || 'http://lo',
+    baseURL: import.meta.env.VITE_API_URL || 'https://portfoliobackend-hnac.onrender.com/api',
 });
 
 // Add a request interceptor

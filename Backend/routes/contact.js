@@ -195,9 +195,13 @@ Message: ${message}
         };
 
 
-        // 🚀 Send Emails
-        await transporter.sendMail(mailOptions);
-        await transporter.sendMail(replyMailOptions);
+        // 🚀 Send Emails (Wrapped in try-catch to prevent 500 error on Render Free Tier SMTP block)
+        try {
+            await transporter.sendMail(mailOptions);
+            await transporter.sendMail(replyMailOptions);
+        } catch (emailErr) {
+            console.error('Email sending failed (likely blocked by Render SMTP rules), but message was saved to database:', emailErr.message);
+        }
 
         res.json({ message: 'Message sent successfully' });
 
