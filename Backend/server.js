@@ -54,6 +54,7 @@ app.use('/api/contact', require('./routes/contact'));
 app.use('/api/leetcode', require('./routes/leetcode'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/sociallinks', require('./routes/socialLinks'));
+app.use('/api/chat', require('./routes/chat'));
 
 app.get('/', (req, res) => {
     res.send('Portfolio Backend is running');

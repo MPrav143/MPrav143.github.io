@@ -6,11 +6,19 @@ const ChatBot = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    const [messages, setMessages] = useState([
-        { text: "Hello! Welcome to Praveen's Portfolio. I'm Jarvis 🤖. How can I help you explore today?", isBot: true }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
-    const [contextData, setContextData] = useState({ projects: [], skills: [], about: {} });
+    const [contextData, setContextData] = useState({ 
+        projects: [], 
+        skills: [], 
+        about: {}, 
+        education: [], 
+        achievements: [], 
+        leetcode: {},
+        certificates: [],
+        experience: [],
+        sociallinks: []
+    });
     const messagesEndRef = useRef(null);
     const synth = window.speechSynthesis;
     const recognitionRef = useRef(null);
@@ -45,25 +53,53 @@ const ChatBot = () => {
             recognitionRef.current = recognition;
         }
 
-        // Auto-greeting (Sound only, do not open)
+        // Smart Greeting System
+        const currentHour = new Date().getHours();
+        let greeting = "";
+        if (currentHour >= 5 && currentHour < 12) greeting = "Good morning…";
+        else if (currentHour >= 12 && currentHour < 17) greeting = "Good afternoon…";
+        else greeting = "Good evening…";
+
+        const isReturning = localStorage.getItem('isReturningUser');
+        let initialMessage = "";
+
+        if (isReturning) {
+            initialMessage = `${greeting} Welcome back… good to see you again. Feel free to ask me anything or explore.`;
+        } else {
+            localStorage.setItem('isReturningUser', 'true');
+            initialMessage = `${greeting} Welcome to my portfolio… I’m here to walk you through my profile. How can I assist you today?`;
+        }
+
         const timer = setTimeout(() => {
-            // setIsOpen(true); // Removed auto-open
-            // speak("Hello! Welcome to Praveen's Portfolio."); // Optional: decide if we want it to speak when hidden. User said "CLOSE... THEN ONLY... OPEN", so better to be silent until interaction or just notification.
-            // Let's keep it silent to respect "Close... then only open".
-        }, 2000);
+            setIsOpen(true);
+            speakAndType(initialMessage);
+        }, 1500);
 
         // Load data
         const fetchData = async () => {
             try {
-                const [projectsRes, skillsRes, aboutRes] = await Promise.all([
-                    api.get('/projects'),
-                    api.get('/skills'),
-                    api.get('/about')
+                const [projectsRes, skillsRes, aboutRes, educationRes, achievementsRes, leetcodeRes, certificatesRes, experienceRes, sociallinksRes] = await Promise.all([
+                    api.get('/projects').catch(() => ({ data: [] })),
+                    api.get('/skills').catch(() => ({ data: [] })),
+                    api.get('/about').catch(() => ({ data: [{}] })),
+                    api.get('/education').catch(() => ({ data: [] })),
+                    api.get('/achievements').catch(() => ({ data: [] })),
+                    api.get('/leetcode').catch(() => ({ data: {} })),
+                    api.get('/certificates').catch(() => ({ data: [] })),
+                    api.get('/experience').catch(() => ({ data: [] })),
+                    api.get('/sociallinks').catch(() => ({ data: [] }))
                 ]);
+                
                 setContextData({
                     projects: projectsRes.data,
                     skills: skillsRes.data,
-                    about: aboutRes.data[0] || {}
+                    about: aboutRes.data[0] || {},
+                    education: educationRes.data || [],
+                    achievements: achievementsRes.data || [],
+                    leetcode: leetcodeRes.data || {},
+                    certificates: certificatesRes.data || [],
+                    experience: experienceRes.data || [],
+                    sociallinks: sociallinksRes.data || []
                 });
             } catch (err) {
                 console.error("Bot failed to load context");
@@ -88,22 +124,95 @@ const ChatBot = () => {
         }
     };
 
-    const speak = (text) => {
-        if (isMuted) return;
+    const speakAndType = (fullText) => {
+        const msgId = Date.now() + Math.random(); // Unique Id template triggers accurately
+        setMessages(prev => [...prev, { id: msgId, text: "", isBot: true }]);
+        
+        if (isMuted) {
+            let index = 0;
+            let currentText = "";
+            const interval = setInterval(() => {
+                if (index < fullText.length) {
+                    currentText += fullText[index++];
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        const item = updated.find(m => m.id === msgId);
+                        if (item) item.text = currentText;
+                        return updated;
+                    });
+                } else {
+                    clearInterval(interval);
+                }
+            }, 30);
+            return;
+        }
+
         synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        // Try to find a good English voice
-        const voice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Microsoft David') || v.lang === 'en-US') || voices[0];
+
+        const utterance = new SpeechSynthesisUtterance(fullText);
+        utterance.lang = 'en-US';
+        utterance.rate = 1.25;
+        const voice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Microsoft David')) || voices[0];
         if (voice) utterance.voice = voice;
-        utterance.pitch = 1;
-        utterance.rate = 1;
+
+        let hasSpoken = false;
+
+        utterance.onboundary = (event) => {
+            hasSpoken = true;
+            if (event.name === 'word') {
+                const charIndex = event.charIndex;
+                const length = event.charLength || (fullText.substring(charIndex).split(/\s+/)[0] || "").length;
+                const revealIndex = charIndex + length;
+
+                setMessages(prev => {
+                    const updated = [...prev];
+                    const item = updated.find(m => m.id === msgId);
+                    if (item) item.text = fullText.substring(0, revealIndex);
+                    return updated;
+                });
+            }
+        };
+
+        utterance.onend = () => {
+             hasSpoken = true;
+             setMessages(prev => {
+                 const updated = [...prev];
+                 const item = updated.find(m => m.id === msgId);
+                 if (item) item.text = fullText;
+                 return updated;
+             });
+        };
+
         synth.speak(utterance);
+
+        // Failsafe for Autoplay Block (e.g., initial load greeting)
+        setTimeout(() => {
+            if (!hasSpoken) {
+                let index = 0;
+                let currentText = "";
+                const interval = setInterval(() => {
+                    if (index < fullText.length) {
+                        currentText += fullText[index++];
+                        setMessages(prev => {
+                            const updated = [...prev];
+                            const item = updated.find(m => m.id === msgId);
+                            if (item) item.text = currentText;
+                            return updated;
+                        });
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 25);
+            }
+        }, 500);
     };
 
     const toggleMute = () => {
         setIsMuted(!isMuted);
         if (!isMuted) synth.cancel();
     };
+
+    // Combined speech and typing logic initialized as speakAndType
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -118,59 +227,181 @@ const ChatBot = () => {
 
         const userMsg = { text: text, isBot: false };
         setMessages(prev => [...prev, userMsg]);
-        processResponse(text);
         setInput('');
+        processResponse(text);
     };
 
-    const processResponse = (userInput) => {
-        const lowerInput = userInput.toLowerCase();
-        let response = "I'm not sure about that, but feel free to check out the sections above!";
+    const processResponse = async (userInput) => {
+        const lowerInput = userInput.trim().toLowerCase();
+        
+        let responseObj = {
+            reply: "I’m not entirely sure about that yet… but feel free to explore more or ask me something else.",
+            action: "",
+            highlight: ""
+        };
 
-        // INTENT: Detailed Bio
-        if (lowerInput.includes('tell me about praveen') ||
-            lowerInput.includes('explain about praveen') ||
-            lowerInput.includes('who is praveen') ||
-            lowerInput.includes('describe praveen') ||
-            lowerInput.includes('know about praveen')) {
+        let useAI = true;
 
-            const about = contextData.about;
-            const bio = about.description || about.summary || "Praveen is a passionate developer.";
+        if (useAI) {
+            try {
+                const res = await api.post('/chat', { message: userInput, context: contextData });
+                if (res.data && res.data.reply) {
+                    responseObj = res.data;
+                    setTimeout(() => {
+                        speakAndType(responseObj.reply);
 
-            response = `Here is complete information about Praveen. he is a ${about.title}. ${bio} he has expertise in various technologies and has completed ${contextData.projects.length} notable projects.`;
-        }
-        // INTENT: Navigation
-        else if (lowerInput.includes('project') || lowerInput.includes('work')) {
-            const section = document.getElementById('projects');
-            if (section) section.scrollIntoView({ behavior: 'smooth' });
-            response = "I've scrolled to the Projects section for you. Here are some highlight works including Data Science analysis and Full Stack apps.";
-
-            const foundProject = contextData.projects.find(p => lowerInput.includes(p.title.toLowerCase()));
-            if (foundProject) {
-                response = `Yes! The **${foundProject.title}** is a ${foundProject.category} project. ${foundProject.description}`;
+                        if (responseObj.action) {
+                             const section = document.getElementById(responseObj.action);
+                             if (section) {
+                                  section.scrollIntoView({ behavior: 'smooth' });
+                                  if (responseObj.highlight) {
+                                       const itemId = `${responseObj.action}-${responseObj.highlight.replace(/\s+/g, '-')}`;
+                                       const element = document.getElementById(itemId);
+                                       if (element) {
+                                            element.classList.add('glow-glow');
+                                            setTimeout(() => element.classList.remove('glow-glow'), 4000);
+                                       }
+                                  }
+                             }
+                        }
+                    }, 600);
+                    return; // Exit if AI handled
+                }
+            } catch (error) {
+                console.error("AI chat failed, falling back to rule-based:", error);
             }
         }
-        else if (lowerInput.includes('skill') || lowerInput.includes('stack') || lowerInput.includes('tech')) {
-            const section = document.getElementById('skills');
-            if (section) section.scrollIntoView({ behavior: 'smooth' });
-            response = "Navigating to Skills. Praveen is proficient in Python, MERN Stack, and Data Science tools like Pandas and Tableau.";
+
+        // --- RULE-BASED FALLBACK ---
+
+        // 1. Direct Project Title Match Or Certificate Match
+        const projectMatch = contextData.projects?.find(p => p.title && (lowerInput.includes(p.title.toLowerCase()) || p.title.toLowerCase().includes(lowerInput)));
+        const certificateMatch = contextData.certificates?.find(c => c.title && (lowerInput.includes(c.title.toLowerCase()) || c.title.toLowerCase().includes(lowerInput)));
+        const skillMatch = contextData.skills?.find(s => s.name && lowerInput.includes(s.name.toLowerCase()));
+
+        if (projectMatch) {
+            responseObj = {
+                reply: `That’s one of my key projects. I created ${projectMatch.title} which is a ${projectMatch.category} application. ${projectMatch.description || ""}`,
+                action: "projects",
+                highlight: projectMatch.title.toLowerCase()
+            };
+        } 
+        else if (certificateMatch) {
+            responseObj = {
+                reply: `That’s one of my certificates. I earned the certification in ${certificateMatch.title} from ${certificateMatch.issuer || "my collection"}.`,
+                action: "certificates",
+                highlight: certificateMatch.title.toLowerCase()
+            };
         }
-        else if (lowerInput.includes('contact') || lowerInput.includes('email') || lowerInput.includes('hire')) {
-            const section = document.getElementById('contact');
-            if (section) section.scrollIntoView({ behavior: 'smooth' });
-            response = `You can contact Praveen at ${contextData.about.email || 'his email'}. I've taken you to the contact section.`;
+        else if (skillMatch) {
+            responseObj = {
+                reply: `That’s something I use quite often. I’ve worked with ${skillMatch.name} to build dynamic and responsive interfaces, especially in my full-stack applications.`,
+                action: "skills",
+                highlight: skillMatch.name.toLowerCase()
+            };
+        }
+        // 4. Bio / Personal Info queries
+        else if (lowerInput.includes('who is praveen') || lowerInput.includes('tell me about praveen') || lowerInput.includes('describe praveen') || lowerInput.includes('about you') || lowerInput.includes('about yourself') || lowerInput === "praveen") {
+             const about = contextData.about || {};
+             const bio = about.description || about.summary || "I am a passionate developer.";
+             responseObj = {
+                 reply: `I am ${about.title || "a Developer"}. ${bio} I have built expertise in various tech stacks and have completed ${contextData.projects?.length || 0} notable projects.`,
+                 action: "",
+                 highlight: ""
+             };
+        }
+        // 5. Quantity Queries
+        else if (lowerInput.includes('how many') && (lowerInput.includes('project') || lowerInput.includes('work'))) {
+             responseObj = {
+                 reply: `I have worked on and completed a total of ${contextData.projects?.length || 0} projects. Let me take you to my projects section to see them.`,
+                 action: "projects",
+                 highlight: ""
+             };
+        }
+        // Keyword Match Fallbacks
+        else if (lowerInput.includes('project') || lowerInput.includes('work')) {
+            responseObj = {
+                reply: "Alright… let me take you through my work. I’ve moved to the projects section. One of my key projects focuses on analyzing real-world data to extract meaningful insights.",
+                action: "projects",
+                highlight: ""
+            };
+        }
+        // 3. Navigation intents
+        else if (lowerInput.includes('skill') || lowerInput.includes('tech') || lowerInput.includes('stack')) {
+            responseObj = {
+                reply: "Let me show you my skills section. I’ve built expertise in various tech stacks like Python and MERN. Here is what I use frequently.",
+                action: "skills",
+                highlight: ""
+            };
         }
         else if (lowerInput.includes('leetcode') || lowerInput.includes('problem') || lowerInput.includes('rank')) {
-            const section = document.getElementById('leetcode');
-            if (section) section.scrollIntoView({ behavior: 'smooth' });
-            response = "Here is Praveen's LeetCode performance. He has solved over 400 problems and earned multiple badges!";
+            responseObj = {
+                reply: "Let me show you that. I’ve navigated to my LeetCode section. I’ve solved over several hundred problems, which really strengthened my problem-solving ability.",
+                action: "leetcode",
+                highlight: ""
+            };
         }
-        else if (lowerInput.includes('hi') || lowerInput.includes('hello')) {
-            response = "Hello there! How can I help you explore the portfolio today?";
+        else if (lowerInput.includes('education') || lowerInput.includes('college') || lowerInput.includes('study')) {
+            responseObj = {
+                reply: "I’ve taken you to my education section. I completed my degree in a field that built a strong foundation for my development and analytical skills.",
+                action: "education",
+                highlight: ""
+            };
+        }
+        else if (lowerInput.includes('achievement') || lowerInput.includes('award')) {
+            responseObj = {
+                reply: "Here are some of my achievements and milestones. I’m always striving to push my boundaries and learn more.",
+                action: "achievements",
+                highlight: ""
+            };
+        }
+        else if (lowerInput.includes('experience') || lowerInput.includes('job') || lowerInput.includes('internship')) {
+            responseObj = {
+                reply: "Let me show you my experience section. I’ve worked on various responsibilities that sharpened my software engineering skills.",
+                action: "experience",
+                highlight: ""
+            };
+        }
+        else if (lowerInput.includes('certificate') || lowerInput.includes('certification')) {
+            responseObj = {
+                reply: "Let me show you my certificate section. I’ve worked on multiple skill courses to bolster my development profile.",
+                action: "certificates",
+                highlight: ""
+            };
+        }
+        else if (lowerInput.includes('contact') || lowerInput.includes('hire') || lowerInput.includes('email')) {
+            responseObj = {
+                reply: "You can reach out to me via my contact form or email. I’ve taken you to the contact section.",
+                action: "contact",
+                highlight: ""
+            };
+        }
+        else if (lowerInput.includes('hi') || lowerInput.includes('hello') || lowerInput.includes('hey')) {
+            responseObj = {
+                reply: "Hello there! How can I assist you in exploring my profile today?",
+                action: "",
+                highlight: ""
+            };
         }
 
         setTimeout(() => {
-            setMessages(prev => [...prev, { text: response, isBot: true }]);
-            speak(response);
+            speakAndType(responseObj.reply);
+
+            if (responseObj.action) {
+                 const section = document.getElementById(responseObj.action);
+                 if (section) {
+                     section.scrollIntoView({ behavior: 'smooth' });
+                     
+                     if (responseObj.highlight) {
+                          const itemId = `${responseObj.action}-${responseObj.highlight.replace(/\s+/g, '-')}`;
+                          const element = document.getElementById(itemId);
+                          if (element) {
+                               element.classList.add('glow-glow');
+                               setTimeout(() => element.classList.remove('glow-glow'), 4000);
+                          }
+                     }
+                 }
+            }
         }, 600);
     };
 
@@ -184,8 +415,8 @@ const ChatBot = () => {
                                 <Cpu size={20} className="text-cyan-400" />
                             </div>
                             <div>
-                                <h3 className="text-white font-bold">Jarvis</h3>
-                                <p className="text-xs text-cyan-400">Online • AI Assistant</p>
+                                 <h3 className="text-white font-bold">Praveen</h3>
+                                <p className="text-xs text-cyan-400">Online • Portfolio Guide</p>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -226,7 +457,7 @@ const ChatBot = () => {
                                 placeholder={isListening ? "Listening..." : "Ask about projects..."}
                                 className="flex-1 bg-transparent text-white p-2 text-sm outline-none placeholder-gray-500"
                             />
-                            <button onClick={handleSend} className="p-2 bg-cyan-600 rounded-md text-white hover:bg-cyan-500 transition-colors">
+                             <button onClick={() => handleSend()} className="p-2 bg-cyan-600 rounded-md text-white hover:bg-cyan-500 transition-colors">
                                 <Send size={16} />
                             </button>
                         </div>
@@ -241,7 +472,7 @@ const ChatBot = () => {
                 >
                     <MessageSquare size={24} />
                     <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap opacity-0 group-hover:opacity-100 pr-2">
-                        Chat with Jarvis
+                        Chat with Me
                     </span>
                 </button>
             )}
