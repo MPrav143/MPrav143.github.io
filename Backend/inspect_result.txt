@@ -1,0 +1,7 @@
+Connected to MongoDB
+Database Name: test
+Collections present: ["achievements","certificates","educations","projects","abouts","experiences","analytics","contacts","skills"]
+Found 1 profile(s) in About collection.
+Existing profile IDs: ["693a5763589e23cc54ebdf61"]
+Attempting update on profile with ID: 693a5763589e23cc54ebdf61
+Update result inside node testing: {"hero":"https://example.com/test-bg.jpg","about":"https://example.com/about-bg.jpg"}
